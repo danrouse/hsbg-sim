@@ -129,6 +129,25 @@ class TestSimulatedCombat(unittest.TestCase):
         result = combat.get_eligible_defender(0, lowest_health=True)
         self.assertEqual(result, lowest_health_enemy)
 
+    def test_get_first_two_friendly_mechs_that_died(self):
+        non_mech = create_entity('Brann Bronzebeard')
+        mech_1 = create_entity('Mechano-Egg')
+        mech_2 = create_entity('Mechano-Egg')
+        mech_3 = create_entity('Mechano-Egg')
+        still_alive = create_entity()
+        combat = SimulatedCombat((
+            [non_mech, mech_1, still_alive, mech_2, mech_3],
+            []
+        ))
+        combat.handle_entity_death(non_mech)
+        combat.handle_entity_death(mech_1)
+        combat.handle_entity_death(mech_2)
+        combat.handle_entity_death(mech_3)
+        self.assertEqual(
+            combat.get_first_two_friendly_mechs_that_died(still_alive),
+            [mech_1, mech_2]
+        )
+
     @unittest.mock.patch('simulate.SimulatedCombat.trigger')
     def test_handle_entity_death_trigger_deathrattle(self, trigger):
         minion = create_entity(deathrattle=True)

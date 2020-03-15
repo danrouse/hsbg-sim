@@ -380,7 +380,7 @@ card_effects = {
     # Kangor's Apprentice
     'BGS_012': {
         Event.DEATHRATTLE: lambda g, minion: [
-            g.summon(minion, mech.card_id) for mech in g.get_first_two_friendly_mechs_that_died()
+            g.summon(minion, mech.card_id) for mech in g.get_first_two_friendly_mechs_that_died(minion)
         ]
     },
     'TB_BaconUps_087': {'triple_of': 'BGS_012'},

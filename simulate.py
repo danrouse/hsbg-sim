@@ -3,6 +3,8 @@ from random import randint
 from uuid import uuid4
 from typing import List, Optional, Any
 
+import hearthstone.enums
+
 from entity import Entity
 from card_effects import card_effects
 from event import Event
@@ -48,6 +50,7 @@ class SimulatedCombat():
         self.logger = logging.getLogger('hsbg')
         self.turn_count = 0
         self.current_controller = self.get_first_controller()
+        self.minion_deaths = [[], []]
 
     def debug_log(self, *args):
         # defer casting entities to strings for performance
@@ -99,9 +102,11 @@ class SimulatedCombat():
         if not friendlies: return
         return friendlies[randint(0, len(friendlies) - 1)]
 
-    def get_first_two_friendly_mechs_that_died(self):
-        # TODO: Implement this (death log?)
-        return []
+    def get_first_two_friendly_mechs_that_died(self, friendly_to: Entity):
+        controller_index = self.get_entity_controller_index(friendly_to)
+        dead_minions = self.minion_deaths[controller_index]
+        dead_mechs = [m for m in dead_minions if m.race == hearthstone.enums.Race.MECHANICAL]
+        return dead_mechs[:2]
 
     #
     # Game/board state calculation
@@ -202,6 +207,9 @@ class SimulatedCombat():
         if entity.reborn:
             self.debug_log('damage', 'reborn', entity)
             self.summon(entity, entity.card_id, reborn=False)
+        else:
+            controller_index = self.get_entity_controller_index(entity)
+            self.minion_deaths[controller_index].append(entity)
 
     def clean_up_dead_minions(self):
         for c_i, c in enumerate(self.controllers):
