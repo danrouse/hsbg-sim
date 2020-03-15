@@ -1,0 +1,7 @@
+[submodule "hearthstone"]
+	path = hearthstone
+	url = git@github.com:HearthSim/python-hearthstone.git
+
+[submodule "hsdata"]
+	path = hsdata
+	url = git@github.com:HearthSim/hsdata.git

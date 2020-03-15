@@ -1,0 +1,3 @@
+hearthstone
+PyQt5
+flake8
