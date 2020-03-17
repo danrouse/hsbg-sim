@@ -253,7 +253,7 @@ class SimulatedCombat():
                 self.debug_log('summon', index, 'failed, board is full', entity.name)
                 return
 
-            new_entity = Entity(id=uuid4(), card_id=card_id, controller_index=controller_index, **kwargs)
+            new_entity = Entity(card_id=card_id, controller_index=controller_index, **kwargs)
             self.debug_log('summon', index, new_entity)
             self.controllers[controller_index].insert(index, new_entity)
 

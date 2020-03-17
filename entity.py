@@ -1,4 +1,4 @@
-from uuid import uuid4
+import random
 
 from card_defs import card_defs
 from card_effects import card_effects
@@ -20,40 +20,46 @@ class Entity():
         reborn=None,
         deathrattle=None,
 
+        tier=None,
+
         enchantments=None,
         controller_index=None
     ):
-        self.id = id if id is not None else uuid4()
+        self.id = id if id is not None else random.getrandbits(16) # NB: not particularly safe
         self.card_id = card_id
 
-        self.card_def = card_defs.get(card_id, {})
+        card_def = card_defs.get(card_id)
+        self.card_def = card_def
         self.effects = card_effects.get(card_id, {})
 
-        self.attack = attack if attack is not None else self.card_def.get('ATK', 0)
-        self.health = health if health is not None else self.card_def.get('HEALTH', 0)
-        self.divine_shield = divine_shield if divine_shield is not None else bool(int(self.card_def.get('DIVINE_SHIELD', 0)))
-        self.windfury = windfury if windfury is not None else bool(int(self.card_def.get('WINDFURY', 0)))
-        self.taunt = taunt if taunt is not None else bool(int(self.card_def.get('TAUNT', 0)))
-        self.poisonous = poisonous if poisonous is not None else bool(int(self.card_def.get('POISONOUS', 0)))
-        self.reborn = reborn if reborn is not None else bool(int(self.card_def.get('REBORN', 0)))
-        self.deathrattle = deathrattle if deathrattle is not None else bool(int(self.card_def.get('DEATHRATTLE', 0)))
-
-        self.race = self.card_def.get('CARDRACE')
-        self.tier = self.card_def.get('TECH_LEVEL', 0)
-        self.name = self.card_def.get('CARDNAME')
-        self.cleave = self.effects.get('cleave')
+        self.attack = attack if attack is not None else card_def.get('ATK', 0)
+        self.health = health if health is not None else card_def.get('HEALTH', 0)
+        self.divine_shield = divine_shield if divine_shield is not None else card_def.get('DIVINE_SHIELD', False)
+        self.windfury = windfury if windfury is not None else card_def.get('WINDFURY', False)
+        self.taunt = taunt if taunt is not None else card_def.get('TAUNT', False)
+        self.poisonous = poisonous if poisonous is not None else card_def.get('POISONOUS', False)
+        self.reborn = reborn if reborn is not None else card_def.get('REBORN', False)
+        self.deathrattle = deathrattle if deathrattle is not None else card_def.get('DEATHRATTLE', False)
+        self.tier = tier if tier is not None else card_def.get('TECH_LEVEL', 0)
 
         self.enchantments = enchantments if enchantments is not None else []
 
         self.exhausted = False
-        self.will_die = False
         self.controller_index = controller_index
 
+    @property
+    def name(self):
+        return self.card_def.get('CARDNAME', self.card_id)
+    @property
+    def race(self):
+        return self.card_def.get('CARDRACE')
+    @property
+    def cleave(self):
+        return self.effects.get('cleave', False)
+
     def __repr__(self):
-        name = self.card_def.get('CARDNAME', self.card_id)
         is_triple = bool('BaconUps' in self.card_id)
-        buf = f"{self.attack}/{self.health} {name}{'+' if is_triple else ''} [{self.id}] "
-        # buf += "[{self.card_id}] "
+        buf = f"{self.attack}/{self.health} {self.name}{'+' if is_triple else ''} [{self.id}] "
 
         buffs = []
         if self.taunt: buffs.append('Taunt')
