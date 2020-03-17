@@ -4,3 +4,4 @@ __pycache__
 .DS_Store
 
 card_art
+card_defs.pickle

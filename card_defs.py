@@ -1,24 +1,54 @@
-import xml.etree.ElementTree as ET
-from random import randint
+import pickle
+import os.path
 
-tree = ET.parse('hsdata/CardDefs.xml')
-card_defs = {}
+from fast_randint import randint
 
-for child in tree.getroot():
-    card = {
-        'ID': int(child.attrib['ID']),
-        'CardID': child.attrib['CardID']
-    }
-    for tag in child:
-        value = tag.attrib.get('value', None)
-        if tag.attrib['name'] != value:
-            if tag.attrib['type'] == 'Int':
-                value = int(value)
-            elif tag.attrib['type'] == 'LocString':
-                value = {s.tag: s.text for s in tag}['enUS']
-            card[tag.attrib['name']] = value
-    card_defs[card['CardID']] = card
 
+CARD_DEFS_PICKLE_PATH = 'card_defs.pickle'
+CARD_DEF_BOOL_FIELDS = (
+    'DIVINE_SHIELD',
+    'WINDFURY',
+    'TAUNT',
+    'POISONOUS',
+    'REBORN',
+    'DEATHRATTLE'
+)
+
+
+def save_card_defs():
+    import xml.etree.ElementTree as ET
+    tree = ET.parse('hsdata/CardDefs.xml')
+    defs = {}
+
+    for child in tree.getroot():
+        card = {
+            'ID': int(child.attrib['ID']),
+            'CardID': child.attrib['CardID']
+        }
+        for tag in child:
+            value = tag.attrib.get('value', None)
+            if tag.attrib['name'] != value:
+                if tag.attrib['type'] == 'Int':
+                    if tag.attrib['name'] in CARD_DEF_BOOL_FIELDS:
+                        value = bool(int(value))
+                    else:
+                        value = int(value)
+                elif tag.attrib['type'] == 'LocString':
+                    value = {s.tag: s.text for s in tag}['enUS']
+                card[tag.attrib['name']] = value
+        defs[card['CardID']] = card
+
+    with open(CARD_DEFS_PICKLE_PATH, 'wb') as fh:
+        pickle.dump(defs, fh)
+    return defs
+
+def load_card_defs():
+    if not os.path.exists(CARD_DEFS_PICKLE_PATH):
+        return save_card_defs()
+    with open(CARD_DEFS_PICKLE_PATH, 'rb') as fh:
+        return pickle.load(fh)
+
+card_defs = load_card_defs()
 
 def get_random_card_id(
     ignore_id='',
