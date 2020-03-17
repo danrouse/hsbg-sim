@@ -52,6 +52,29 @@ class SimulatedCombat():
         self.current_controller = self.get_first_controller()
         self.minion_deaths = [[], []]
 
+    @classmethod
+    def predict_outcome(
+        cls,
+        players: List[Tuple[Entity, List[Entity]]],
+        iterations: int = 1000
+    ):
+        controllers = [c[1] for c in players]
+        outcomes = []
+        for _ in range(iterations):
+            winner, damage = cls(controllers).simulate()
+            if winner != -1:
+                damage += players[winner][0].tier
+            if winner == 1:
+                damage *= -1
+            outcomes.append(damage)
+        outcome_probs = []
+        for uniqval in set(outcomes):
+            outcome_probs.append((
+                uniqval,
+                len([k for k in outcomes if k == uniqval]) / iterations
+            ))
+        return outcome_probs
+
     def debug_log(self, *args):
         # defer casting entities to strings for performance
         if self.logger.level >= logging.DEBUG:

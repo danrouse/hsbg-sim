@@ -4,7 +4,7 @@ import time
 from card_defs import card_defs
 from entity import Entity
 from simulate import SimulatedCombat
-from chart import plot_probabilities
+# from chart import plot_probabilities
 
 
 def parse_entity_id(entity: str):
@@ -16,36 +16,39 @@ def parse_entity_id(entity: str):
 
 class Parser():
     def __init__(self):
-        self.entities = {}
+        self.entity_defs = {}
         self.games = []
-        self.cur_entity = None
+        self.cur_entity_id = None
 
     def get_game_state(self):
-        controllers = {}
-        has_bob = bool([s for s in self.entities.values() if s.get('card_id') == 'TB_BaconShopBob' and s.get('ZONE') == 'PLAY'])
+        heroes = {}
+        minions = {}
+        has_bob = bool([s for s in self.entity_defs.values() if s.get('card_id') == 'TB_BaconShopBob' and s.get('ZONE') == 'PLAY'])
         if has_bob: return []
-        for id, ent in self.entities.items():
+        for id, ent in self.entity_defs.items():
             card_id = ent.get('card_id')
             card_type = ent.get('CARDTYPE')
             controller = ent.get('CONTROLLER')
             attack = int(ent.get('ATK', 0))
             health = int(ent.get('HEALTH', 0))
             if card_type in ['MINION', 'HERO', 'ENCHANTMENT'] and ent.get('ZONE') not in ['REMOVEDFROMGAME', 'GRAVEYARD', 'SETASIDE']:
-                if controller not in controllers:
-                    controllers[controller] = {
-                        'HERO': None,
-                        'MINION': []
-                    }
                 if card_type == 'HERO':
-                    controllers[controller][card_type] = ent
+                    heroes[controller] = Entity(
+                        id=controller,
+                        card_id=card_id,
+                        health=health - int(ent.get('DAMAGE', 0)),
+                        tier=int(ent.get('PLAYER_TECH_LEVEL', 1))
+                    )
                 elif card_type == 'ENCHANTMENT':
-                    for minion in controllers[controller]['MINION']:
+                    for minion in minions[controller]:
                         if minion and minion.id == ent.get('ATTACHED'):
                             minion.enchantments.append(card_id)
                 else:
-                    while len(controllers[controller][card_type]) < int(ent.get('ZONE_POSITION')):
-                        controllers[controller][card_type].append(None)
-                    controllers[controller][card_type][int(ent.get('ZONE_POSITION')) - 1] = Entity(
+                    if controller not in minions:
+                        minions[controller] = []
+                    while len(minions[controller]) < int(ent.get('ZONE_POSITION')):
+                        minions[controller].append(None)
+                    minions[controller][int(ent.get('ZONE_POSITION')) - 1] = Entity(
                         id=id,
                         card_id=card_id,
                         attack=attack,
@@ -57,94 +60,62 @@ class Parser():
                         reborn=bool(int(ent.get('REBORN', 0))),
                         deathrattle=bool(int(ent.get('DEATHRATTLE', 0)))
                     )
-        return [s for s in controllers.values()]
+        return list(zip(heroes.values(), minions.values()))
 
-    def predict_outcome(self, controllers, heroes, n=1000):
-        outcomes = []
-        times = []
-        for i in range(n):
-            t_a = time.time()
-            winner, damage = SimulatedCombat([c['MINION'] for c in controllers]).simulate()
-            t_b = time.time()
-            times.append(t_b - t_a)
-            if winner != -1:
-                damage += int(controllers[winner]['HERO']['PLAYER_TECH_LEVEL'])
-            if winner == 1:
-                damage *= -1
+    def handle_turn_start(self):
+        players = self.get_game_state()
+        if len(players) != 2: return
 
-            outcomes.append(damage)
-
-        prob_win = len([k for k in outcomes if k > 0]) / n
-        prob_loss = len([k for k in outcomes if k < 0]) / n
-        prob_draw = len([k for k in outcomes if k == 0]) / n
-
-        print(f'Avg time: {sum(times) / n}')
-        print(f'Total time: {sum(times)}')
-        print(f'Win: {prob_win}')
-        print(f'Loss: {prob_loss}')
-        print(f'Draw: {prob_draw}')
-
-        plot_probabilities(outcomes, heroes)
-
-    def dump_game(self):
-        has_heroes = True
-        controllers = self.get_game_state()
-        if len(controllers) != 2: return
-        heroes = []  # TODO: clean up hero handling/passing into SimulatedCombat
-        for controller in controllers:
-            if not controller.get('HERO'):
-                has_heroes = False
-                break
-            hero = (controller or {}).get('HERO', {}) or {}
-            tier = hero.get('PLAYER_TECH_LEVEL', '?')
-            hero_card_id = hero.get('card_id')
-            hero_name = hero.get('card', {}).get('CARDNAME', 'Unknown Hero')
-            hero_hp = int(hero.get('HEALTH', 40)) - int(hero.get('DAMAGE', 0))
-            heroes.append((hero_card_id, hero_name, hero_hp))
-            print(f'{hero_name} ({tier}) {hero_hp} HP')
-            for minion in controller['MINION']:
+        for hero, minions in players:
+            print(f"{hero.name} ({hero.tier}) {hero.health} HP")
+            for minion in minions:
                 print('\t', minion)
 
-        if has_heroes:
-            print('-----------------------------------')
-            print(self.predict_outcome(controllers, heroes))
-            print('===================================')
+        print('-----------------------------------')
+        outcomes = SimulatedCombat.predict_outcome(players)
+        prob_win = sum([v for k,v in outcomes if k > 0])
+        prob_loss = sum([v for k,v in outcomes if k < 0])
+        prob_draw = sum([v for k,v in outcomes if k == 0])
+        print(f'Win: {round(prob_win * 100, 2)}%')
+        print(f'Loss: {round(prob_loss * 100, 2)}%')
+        print(f'Draw: {round(prob_draw * 100, 2)}%')
+        print('===================================')
 
     def update_entity(self, entity, tag, value):
         entity_id = parse_entity_id(entity)
-        if entity_id not in self.entities:
-            self.entities[entity_id] = {}
-        self.entities[entity_id][tag] = value
+        if entity_id not in self.entity_defs:
+            self.entity_defs[entity_id] = {}
+        self.entity_defs[entity_id][tag] = value
 
         if entity_id == 'GameEntity' and tag == 'STEP' and value == 'MAIN_READY':
-            self.dump_game()
+            self.handle_turn_start()
 
     def handle_log_line(self, line):
         if 'GameState.DebugPrintPower()' in line:
             if 'CREATE_GAME' in line:
-                if self.entities: self.games.append(self.entities)
-                self.entities = {}
+                if self.entity_defs: self.games.append(self.entity_defs)
+                self.entity_defs = {}
             elif 'FULL_ENTITY' in line:
                 match = re.search(r'FULL_ENTITY - Creating ID=(?P<id>\d+) CardID=(?P<card_id>\w*)', line)
-                self.cur_entity = match.group('id')
-                self.entities[self.cur_entity] = {
+                self.cur_entity_id = match.group('id')
+                self.entity_defs[self.cur_entity_id] = {
                     'card_id': match.group('card_id').strip(),
                     'card': card_defs.get(match.group('card_id').strip())
                 }
             elif 'SHOW_ENTITY' in line:
                 match = re.search(r'SHOW_ENTITY - Updating Entity=(?P<id>.+) CardID=(?P<card_id>\w*)', line)
-                self.cur_entity = parse_entity_id(match.group('id'))
-                self.entities[self.cur_entity]['card_id'] = match.group('card_id').strip()
-                self.entities[self.cur_entity]['card'] = card_defs.get(match.group('card_id').strip())
+                self.cur_entity_id = parse_entity_id(match.group('id'))
+                self.entity_defs[self.cur_entity_id]['card_id'] = match.group('card_id').strip()
+                self.entity_defs[self.cur_entity_id]['card'] = card_defs.get(match.group('card_id').strip())
             elif 'TAG_CHANGE' in line:
                 match = re.search(r'TAG_CHANGE Entity=(?P<id>.+) tag=(?P<tag>.+) value=(?P<value>.+)', line)
                 self.update_entity(match.group('id'), match.group('tag'), match.group('value').strip())
-            elif self.cur_entity:
+            elif self.cur_entity_id:
                 match = re.search(r'tag=(?P<tag>.+) value=(?P<value>.+)', line)
                 if match:
-                    self.update_entity(self.cur_entity, match.group('tag'), match.group('value').strip())
+                    self.update_entity(self.cur_entity_id, match.group('tag'), match.group('value').strip())
                 else:
-                    self.cur_entity = None
+                    self.cur_entity_id = None
 
     def parse_games(self, path: str, last=True):
         with open(path, 'r') as fh:
