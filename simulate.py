@@ -1,10 +1,10 @@
 import logging
-from random import randint
 from uuid import uuid4
 from typing import List, Optional, Any
 
 import hearthstone.enums
 
+from fast_randint import randint
 from entity import Entity
 from card_effects import card_effects
 from event import Event
