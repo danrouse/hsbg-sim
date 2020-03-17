@@ -61,15 +61,15 @@ def get_random_card_id(
     matches = cache.get(cache_key, [])
     if not matches:
         for card in card_defs.values():
-            if card.get('CardID') == ignore_id: continue
+            if card['CardID'] == ignore_id: continue
             if battlegrounds_only and not battlegrounds_triple and card.get('IS_BACON_POOL_MINION') != 1: continue
-            if 'BaconUps' not in card.get('CardID') and battlegrounds_triple: continue
+            if 'BaconUps' not in card['CardID'] and battlegrounds_triple: continue
             match = False
             for key, val in kwargs.items():
                 if card.get(key) == val:
                     match = True
                     break
             if match:
-                matches.append(card.get('CardID'))
+                matches.append(card['CardID'])
         cache[cache_key] = matches
     return matches[randint(0, len(matches) - 1)]

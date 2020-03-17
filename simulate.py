@@ -1,6 +1,5 @@
 import logging
-from uuid import uuid4
-from typing import List, Optional, Any
+from typing import List, Tuple, Optional, Any
 
 import hearthstone.enums
 
@@ -10,7 +9,6 @@ from card_effects import card_effects
 from event import Event
 
 
-# logging.basicConfig(level=logging.FATAL)
 # logging.basicConfig(level=logging.DEBUG)
 
 
@@ -21,8 +19,6 @@ from event import Event
 #     Ragnaros the Firelord
 #     The Great Akazamarak (Secrets?)
 # TODO: Passive minion buffs (are values are reported by Power.log buffed or unbuffed?)
-# TODO (Code): Test examples
-# TODO (Code): Linting
 # TODO (Code): Docstrings
 # TODO (Design): Board state visualizer
 
@@ -47,7 +43,9 @@ class SimulatedCombat():
         for i, c in enumerate(self.controllers):
             for minion in c:
                 minion.controller_index = i
+
         self.logger = logging.getLogger('hsbg')
+        # self.logger.setLevel(logging.DEBUG)
         self.turn_count = 0
         self.current_controller = self.get_first_controller()
         self.minion_deaths = [[], []]
@@ -80,17 +78,13 @@ class SimulatedCombat():
         if self.logger.level >= logging.DEBUG:
             s = ':'.join([str(a) for a in args])
             self.logger.debug(s)
-        # elif args[0] == 'trigger':
-        #     print(':'.join([str(a) for a in args]))
 
     #
     # Entity Selectors
     #
 
     def get_all_minions(self):
-        minions = self.controllers[self.current_controller] + \
-            self.controllers[0 if self.current_controller == 1 else 1]
-        return [m for m in minions if m.health > 0]
+        return [m for m in self.controllers[0] + self.controllers[1] if m.health > 0]
 
     def get_enemies(self, enemy_to: Entity, allow_dead: Optional[bool] = False):
         controller_index = self.get_entity_controller_index(enemy_to)
@@ -142,12 +136,14 @@ class SimulatedCombat():
         return randint(0, 1)
 
     def get_winner(self):
-        if not self.controllers[0] and not self.controllers[1]:
+        controller_0_dead = not self.controllers[0]
+        controller_1_dead = not self.controllers[1]
+        if controller_0_dead and controller_1_dead:
             return (-1, 0)
-        elif not self.controllers[0]:
+        elif controller_0_dead:
             damage = sum([int(m.tier) for m in self.controllers[1]])
             return (1, damage)
-        elif not self.controllers[1]:
+        elif controller_1_dead:
             damage = sum([int(m.tier) for m in self.controllers[0]])
             return (0, damage)
 
@@ -198,6 +194,7 @@ class SimulatedCombat():
         for i, c in enumerate(self.controllers):
             for m in c:
                 if m.id == entity.id:
+                    entity.controller_index = i
                     return i
         raise Exception('No controller index found')
 
