@@ -56,6 +56,10 @@ class SimulatedCombat():
         players: List[Tuple[Entity, List[Entity]]],
         iterations: int = 1000
     ):
+        """
+        Simulate a combat many times.
+        Returns list of (damage_received, probability) pairs.
+        """
         controllers = [c[1] for c in players]
         outcomes = []
         for _ in range(iterations):
@@ -176,7 +180,7 @@ class SimulatedCombat():
             if entity.card_id == CARD_BARON_RIVENDARE:
                 multiplier = max(2, multiplier)
             elif entity.card_id == CARD_BARON_RIVENDARE_TRIPLE:
-                multiplier = max(3, multiplier)
+                return 3
         return multiplier
 
     def get_khadgar_summon_multiplier(self, entity: Entity):
@@ -185,7 +189,7 @@ class SimulatedCombat():
             if entity.card_id == CARD_KHADGAR:
                 multiplier = max(2, multiplier)
             elif entity.card_id == CARD_KHADGAR_TRIPLE:
-                multiplier = max(3, multiplier)
+                return 3
         return multiplier
 
     def get_entity_controller_index(self, entity: Entity):
@@ -242,6 +246,11 @@ class SimulatedCombat():
         *args: List[Any],
         trigger_from_card: Optional[str] = None,
     ):
+        """
+        Trigger an Event on an Entity. Uses definitions from card_effects.
+        If trigger_from_card is passed, will use that as card ID instead of entity's.
+        Returns True if an effect to trigger exists.
+        """
         impl = card_effects.get(trigger_from_card) if trigger_from_card else entity.effects
         if trigger_name in impl:
             self.debug_log('trigger', trigger_name, entity)
@@ -263,6 +272,11 @@ class SimulatedCombat():
         count: int = 1,
         **kwargs
     ):
+        """
+        Summon a new minion as an ally of entity.
+        Will not summon if board is full.
+        Returns the newly created Entity.
+        """
         m_id = self.get_entity_index(entity)
         index = index or m_id
         new_entity = None
@@ -291,6 +305,9 @@ class SimulatedCombat():
         divine_shield: Optional[bool] = None,
         taunt: Optional[bool] = None
     ):
+        """
+        Modify the stats and attributes of all provided entities.
+        """
         for entity in entities:
             entity.attack += attack
             entity.health += health
@@ -307,6 +324,10 @@ class SimulatedCombat():
         damage: Optional[int] = None,
         poisonous: Optional[bool] = None
     ):
+        """
+        Deal damage from attacker to all provided entities.
+        If damage or poisonous are not specified, uses values from attacker.
+        """
         if damage is None: damage = attacker.attack
         if poisonous is None: poisonous = attacker.poisonous
         for entity in entities:
@@ -334,6 +355,11 @@ class SimulatedCombat():
     #
 
     def attack_with(self, attacker: Entity):
+        """
+        Perform an attack with an entity.
+        Finds a defender to attack. Attacker will receive damage, too.
+        Attackers with cleave (defined in card_effects) will hit multiple targets.
+        """
         attacker_controller_index = self.get_entity_controller_index(attacker)
         enemy_controller_index = int(not attacker_controller_index)
         defender = self.get_eligible_defender(enemy_controller_index, lowest_health=attacker.card_id in [CARD_ZAPP_SLYWICK, CARD_ZAPP_SLYWICK_TRIPLE])
@@ -361,6 +387,12 @@ class SimulatedCombat():
         self.clean_up_dead_minions()
 
     def handle_turn(self, controller_index: int, single_turn=False):
+        """
+        Move forward one step in the combat.
+        Checks for termination to the combat (win, loss, draw, or deadlock)
+        The next eligible attacker at controller_index is chosen to attack.
+        If the attacker has windfury, it will attack twice.
+        """
         self.turn_count += 1
         self.debug_log('turn', self.turn_count)
         if self.turn_count == 1:
@@ -393,4 +425,7 @@ class SimulatedCombat():
         return self.handle_turn(enemy_controller_index)
 
     def simulate(self):
+        """
+        Begin the turn-taking combat simulation.
+        """
         return self.handle_turn(self.current_controller)
