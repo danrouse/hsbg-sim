@@ -1,4 +1,5 @@
 import random
+from typing import Optional, List, Any
 
 from card_defs import card_defs
 from card_effects import card_effects
@@ -7,23 +8,23 @@ from card_effects import card_effects
 class Entity():
     def __init__(
         self,
-        card_id,
-        id=None,
+        card_id: str,
+        id: Optional[Any] = None,
 
-        attack=None,
-        health=None,
+        attack: Optional[int] = None,
+        health: Optional[int] = None,
 
-        divine_shield=None,
-        windfury=None,
-        taunt=None,
-        poisonous=None,
-        reborn=None,
-        deathrattle=None,
+        divine_shield: Optional[bool] = None,
+        windfury: Optional[bool] = None,
+        taunt: Optional[bool] = None,
+        poisonous: Optional[bool] = None,
+        reborn: Optional[bool] = None,
+        deathrattle: Optional[bool] = None,
 
-        tier=None,
+        tier: Optional[int] = None,
 
-        enchantments=None,
-        controller_index=None
+        enchantments: Optional[List[str]] = None,
+        controller_index: Optional[int] = None
     ):
         self.id = id if id is not None else random.getrandbits(16) # NB: not particularly safe
         self.card_id = card_id
